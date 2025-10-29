@@ -13,10 +13,12 @@ import './PromptController';
 import './PlayPauseButton';
 import './AudioEditor';
 import './DrumSequencer';
+import './ApiKeyModal';
 import type { PlaybackState, Prompt, RecordingState } from '../types';
 import { MidiDispatcher } from '../utils/MidiDispatcher';
 import { AudioRecorder } from '../utils/AudioRecorder';
 import { LiveMusicHelper } from '../utils/LiveMusicHelper';
+import { ApiKeyStorage } from '../utils/ApiKeyStorage';
 
 /** The grid of prompt inputs. */
 @customElement('prompt-dj-midi')
@@ -207,6 +209,7 @@ export class PromptDjMidi extends LitElement {
 
   private prompts: Map<string, Prompt>;
   private midiDispatcher: MidiDispatcher;
+  private liveMusicHelper: LiveMusicHelper;
 
   @property({ type: Boolean }) private showMidi = false;
   @property({ type: String }) public playbackState: PlaybackState = 'stopped';
@@ -222,17 +225,23 @@ export class PromptDjMidi extends LitElement {
   @state() private isEditorOpen = false;
   @state() private isSequencerOpen = false;
   @state() private transitionBars = 4;
+  @state() private isApiModalOpen = false;
 
   @property({ type: Object })
   private filteredPrompts = new Set<string>();
 
   constructor(
     initialPrompts: Map<string, Prompt>,
-    private liveMusicHelper: LiveMusicHelper
+    liveMusicHelper: LiveMusicHelper | null
   ) {
     super();
     this.prompts = initialPrompts;
     this.midiDispatcher = new MidiDispatcher();
+    this.liveMusicHelper = liveMusicHelper!;
+  }
+
+  public setLiveMusicHelper(helper: LiveMusicHelper) {
+    this.liveMusicHelper = helper;
   }
 
   override updated(changedProperties: Map<string, unknown>) {
@@ -370,6 +379,26 @@ export class PromptDjMidi extends LitElement {
     this.transitionBars = bars;
   }
 
+  private toggleApiModal() {
+    this.isApiModalOpen = !this.isApiModalOpen;
+  }
+
+  public showApiModal() {
+    this.isApiModalOpen = true;
+  }
+
+  private handleApiModalSave(e: CustomEvent) {
+    this.isApiModalOpen = false;
+    // Dispatch event to notify parent that API key was saved
+    this.dispatchEvent(new CustomEvent('api-key-saved', {
+      detail: e.detail
+    }));
+  }
+
+  private handleApiModalCancel() {
+    this.isApiModalOpen = false;
+  }
+
   override render() {
     const bg = styleMap({
       backgroundImage: this.makeBackground(),
@@ -380,6 +409,11 @@ export class PromptDjMidi extends LitElement {
 
     return html`<div id="background" style=${bg}></div>
       <div id="buttons">
+        <button
+          @click=${this.toggleApiModal}
+          class=${ApiKeyStorage.hasValidApiKey() ? 'active' : ''}
+          >API</button
+        >
         <button
           @click=${this.toggleShowMidi}
           class=${this.showMidi ? 'active' : ''}
@@ -429,6 +463,7 @@ export class PromptDjMidi extends LitElement {
       </div>
       ${this.isEditorOpen ? html`<audio-editor .audioBlob=${this.recordedAudioBlob} @close=${this.closeEditor}></audio-editor>`: ''}
       ${this.isSequencerOpen ? html`<drum-sequencer .liveMusicHelper=${this.liveMusicHelper} @close=${this.toggleSequencer}></drum-sequencer>`: ''}
+      ${this.isApiModalOpen ? html`<api-key-modal @save=${this.handleApiModalSave} @cancel=${this.handleApiModalCancel}></api-key-modal>` : ''}
       `;
   }
 

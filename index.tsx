@@ -10,16 +10,43 @@ import { PromptDjMidi } from './components/PromptDjMidi';
 import { ToastMessage } from './components/ToastMessage';
 import { LiveMusicHelper } from './utils/LiveMusicHelper';
 import { AudioAnalyser } from './utils/AudioAnalyser';
+import { ApiKeyStorage } from './utils/ApiKeyStorage';
 import './components/AudioEditor';
 import './components/DrumSequencer';
+import './components/ApiKeyModal';
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+let ai: GoogleGenAI;
 const model = 'lyria-realtime-exp';
 
-function main() {
+async function initializeAI(): Promise<GoogleGenAI | null> {
+  // First, try to get API key from storage
+  let apiKey = await ApiKeyStorage.retrieveApiKey();
+  
+  // If no valid stored key, try environment variable
+  if (!apiKey && process.env.API_KEY) {
+    apiKey = process.env.API_KEY;
+  }
+  
+  // If still no key, return null to trigger modal
+  if (!apiKey) {
+    return null;
+  }
+  
+  return new GoogleGenAI({ apiKey });
+}
+
+async function main() {
+  // Initialize AI client (may be null if no API key)
+  ai = await initializeAI();
+  
   const initialPrompts = buildInitialPrompts();
 
-  const liveMusicHelper = new LiveMusicHelper(ai, model);
+  let liveMusicHelper: LiveMusicHelper | null = null;
+  
+  // Only create LiveMusicHelper if we have an AI client
+  if (ai) {
+    liveMusicHelper = new LiveMusicHelper(ai, model);
+  }
 
   const pdjMidi = new PromptDjMidi(initialPrompts, liveMusicHelper);
   document.body.appendChild(pdjMidi);
@@ -27,11 +54,74 @@ function main() {
   const toastMessage = new ToastMessage();
   document.body.appendChild(toastMessage);
 
-  liveMusicHelper.setWeightedPrompts(initialPrompts);
+  // If no AI client, show the API modal immediately
+  if (!ai) {
+    // Wait a bit for the component to mount
+    setTimeout(() => {
+      pdjMidi.showApiModal();
+    }, 100);
+  } else {
+    liveMusicHelper!.setWeightedPrompts(initialPrompts);
+  }
 
-  const audioAnalyser = new AudioAnalyser(liveMusicHelper.audioContext);
-  liveMusicHelper.extraDestination = audioAnalyser.node;
+  const audioAnalyser = new AudioAnalyser(liveMusicHelper ? liveMusicHelper.audioContext : new AudioContext());
+  if (liveMusicHelper) {
+    liveMusicHelper.extraDestination = audioAnalyser.node;
+  }
 
+  // Handle API key saved event
+  pdjMidi.addEventListener('api-key-saved', async (e: Event) => {
+    const customEvent = e as CustomEvent<{ apiKey: string }>;
+    const { apiKey } = customEvent.detail;
+    
+    try {
+      // Reinitialize AI with new key
+      ai = new GoogleGenAI({ apiKey });
+      
+      // Create LiveMusicHelper if it doesn't exist
+      if (!liveMusicHelper) {
+        liveMusicHelper = new LiveMusicHelper(ai, model);
+        liveMusicHelper.setWeightedPrompts(initialPrompts);
+        
+        // Update the audio analyser
+        const newAudioAnalyser = new AudioAnalyser(liveMusicHelper.audioContext);
+        liveMusicHelper.extraDestination = newAudioAnalyser.node;
+        
+        // Re-setup event listeners for the new LiveMusicHelper
+        setupLiveMusicHelperListeners(liveMusicHelper, pdjMidi, newAudioAnalyser, toastMessage);
+      }
+      
+      // Update pdjMidi with the new liveMusicHelper
+      pdjMidi.setLiveMusicHelper(liveMusicHelper);
+      
+      toastMessage.show('API key saved successfully!');
+    } catch (error) {
+      toastMessage.show('Failed to initialize with API key: ' + (error as Error).message);
+    }
+  });
+
+  if (liveMusicHelper) {
+    setupLiveMusicHelperListeners(liveMusicHelper, pdjMidi, audioAnalyser, toastMessage);
+  }
+
+  const errorToast = ((e: Event) => {
+    const customEvent = e as CustomEvent<string>;
+    const error = customEvent.detail;
+    toastMessage.show(error);
+  });
+
+  if (liveMusicHelper) {
+    liveMusicHelper.addEventListener('error', errorToast);
+  }
+  pdjMidi.addEventListener('error', errorToast);
+}
+
+function setupLiveMusicHelperListeners(
+  liveMusicHelper: LiveMusicHelper,
+  pdjMidi: PromptDjMidi,
+  audioAnalyser: AudioAnalyser,
+  toastMessage: ToastMessage
+) {
   pdjMidi.addEventListener('prompts-changed', ((e: Event) => {
     const customEvent = e as CustomEvent<PromptsChangedEventDetail>;
     const { prompts, transitionBars } = customEvent.detail;
@@ -74,21 +164,11 @@ function main() {
     pdjMidi.addFilteredPrompt(filteredPrompt.text!);
   }));
 
-  const errorToast = ((e: Event) => {
-    const customEvent = e as CustomEvent<string>;
-    const error = customEvent.detail;
-    toastMessage.show(error);
-  });
-
-  liveMusicHelper.addEventListener('error', errorToast);
-  pdjMidi.addEventListener('error', errorToast);
-
   audioAnalyser.addEventListener('audio-level-changed', ((e: Event) => {
     const customEvent = e as CustomEvent<number>;
     const level = customEvent.detail;
     pdjMidi.audioLevel = level;
   }));
-
 }
 
 function buildInitialPrompts() {
