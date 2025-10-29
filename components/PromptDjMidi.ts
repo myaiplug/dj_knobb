@@ -40,6 +40,66 @@ export class PromptDjMidi extends LitElement {
       width: 100%;
       z-index: -1;
       background: #111;
+      animation: backgroundPulse 4s ease-in-out infinite;
+    }
+    @keyframes backgroundPulse {
+      0%, 100% {
+        filter: brightness(1);
+      }
+      50% {
+        filter: brightness(1.1);
+      }
+    }
+    #background::before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: 
+        linear-gradient(45deg, transparent 30%, rgba(255, 255, 255, 0.03) 50%, transparent 70%);
+      animation: sweepGradient 8s linear infinite;
+      pointer-events: none;
+    }
+    @keyframes sweepGradient {
+      0% {
+        transform: translateX(-100%) translateY(-100%) rotate(0deg);
+      }
+      100% {
+        transform: translateX(100%) translateY(100%) rotate(360deg);
+      }
+    }
+    #background::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: 
+        radial-gradient(ellipse at 20% 30%, rgba(255, 255, 255, 0.05) 0%, transparent 50%),
+        radial-gradient(ellipse at 80% 70%, rgba(255, 255, 255, 0.04) 0%, transparent 50%);
+      animation: smokeMove 20s ease-in-out infinite;
+      pointer-events: none;
+    }
+    @keyframes smokeMove {
+      0%, 100% {
+        opacity: 0.3;
+        transform: scale(1) translateY(0);
+      }
+      25% {
+        opacity: 0.5;
+        transform: scale(1.1) translateY(-10px);
+      }
+      50% {
+        opacity: 0.4;
+        transform: scale(1.05) translateY(-5px);
+      }
+      75% {
+        opacity: 0.6;
+        transform: scale(1.15) translateY(-15px);
+      }
     }
     #grid {
       width: 80vmin;
@@ -373,6 +433,8 @@ export class PromptDjMidi extends LitElement {
   override render() {
     const bg = styleMap({
       backgroundImage: this.makeBackground(),
+      filter: `brightness(${1 + this.audioLevel * 0.3})`,
+      transition: 'filter 0.1s ease-out',
     });
     const recordingProgress = this.recordingState === 'recording' ? 
         (this.recordingTime / AudioRecorder.MAX_DURATION) * 100 : 0;
