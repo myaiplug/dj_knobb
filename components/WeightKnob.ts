@@ -198,7 +198,7 @@ export class WeightKnob extends LitElement {
   }
   
   private renderStaticSvg() { 
-    return html`<svg viewBox="0 0 80 80">
+    return html`<svg viewBox="0 0 80 80" style="pointer-events: none;">
         <!-- Outer shadow ring for depth -->
         <ellipse
           opacity="0.6"
