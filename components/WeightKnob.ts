@@ -45,6 +45,8 @@ export class WeightKnob extends LitElement {
       mix-blend-mode: lighten;
       transform: scale(2);
       will-change: transform;
+      filter: blur(20px);
+      opacity: 0.7;
     }
   `;
 
@@ -139,153 +141,183 @@ export class WeightKnob extends LitElement {
         viewBox="0 0 80 80"
         @pointerdown=${this.handlePointerDown}
         @wheel=${this.handleWheel}>
+        <!-- Pointer indicator with 3D effect -->
         <g style=${dotStyle}>
-          <circle cx="14" cy="0" r="2" fill="#000" />
+          <!-- Shadow for pointer -->
+          <ellipse cx="14" cy="1" rx="2.5" ry="2" fill="#00000066" />
+          <!-- Main pointer body -->
+          <circle cx="14" cy="0" r="2.2" fill="url(#pointerGradient)" />
+          <!-- Highlight on pointer -->
+          <ellipse cx="13.5" cy="-0.5" rx="1.2" ry="1" fill="#ffffff88" />
         </g>
+        <!-- Track background arc with inset shadow -->
         <path
           d=${this.describeArc(40, 40, minRot, maxRot, 34.5)}
           fill="none"
-          stroke="#0003"
-          stroke-width="3"
+          stroke="url(#trackBackground)"
+          stroke-width="3.5"
           stroke-linecap="round" />
+        <!-- Active value arc with gradient -->
         <path
           d=${this.describeArc(40, 40, minRot, rot, 34.5)}
           fill="none"
-          stroke="#fff"
-          stroke-width="3"
-          stroke-linecap="round" />
+          stroke="url(#trackActive)"
+          stroke-width="3.5"
+          stroke-linecap="round"
+          filter="url(#activeGlow)" />
+        <defs>
+          <!-- Pointer gradient -->
+          <radialGradient id="pointerGradient">
+            <stop offset="0%" stop-color="#ffffff" />
+            <stop offset="70%" stop-color="#e0e0e0" />
+            <stop offset="100%" stop-color="#b0b0b0" />
+          </radialGradient>
+          <!-- Track background gradient for depth -->
+          <linearGradient id="trackBackground" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stop-color="#1a1a1a" />
+            <stop offset="50%" stop-color="#2a2a2a" />
+            <stop offset="100%" stop-color="#1a1a1a" />
+          </linearGradient>
+          <!-- Active track gradient -->
+          <linearGradient id="trackActive" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stop-color="#ffffff" />
+            <stop offset="50%" stop-color="#f0f0f0" />
+            <stop offset="100%" stop-color="#e0e0e0" />
+          </linearGradient>
+          <!-- Glow effect for active arc -->
+          <filter id="activeGlow">
+            <feGaussianBlur stdDeviation="0.5" result="coloredBlur"/>
+            <feMerge>
+              <feMergeNode in="coloredBlur"/>
+              <feMergeNode in="SourceGraphic"/>
+            </feMerge>
+          </filter>
+        </defs>
       </svg>
     `;
   }
   
   private renderStaticSvg() { 
-    return html`<svg viewBox="0 0 80 80">
+    return html`<svg viewBox="0 0 80 80" style="pointer-events: none;">
+        <!-- Outer shadow ring for depth -->
         <ellipse
-          opacity="0.4"
+          opacity="0.6"
           cx="40"
           cy="40"
           rx="40"
           ry="40"
-          fill="url(#f1)" />
-        <g filter="url(#f2)">
-          <ellipse cx="40" cy="40" rx="29" ry="29" fill="url(#f3)" />
+          fill="url(#outerShadow)" />
+        
+        <!-- Base bezel with metallic gradient -->
+        <g filter="url(#bezelShadow)">
+          <ellipse cx="40" cy="40" rx="31" ry="31" fill="url(#bezelGradient)" />
         </g>
-        <g filter="url(#f4)">
-          <circle cx="40" cy="40" r="20.6667" fill="url(#f5)" />
+        
+        <!-- Inner bezel ring with specular highlight -->
+        <ellipse cx="40" cy="40" rx="29" ry="29" fill="url(#innerBezelGradient)" />
+        
+        <!-- Main knob body with deep shadows -->
+        <g filter="url(#knobShadow)">
+          <circle cx="40" cy="40" r="22" fill="url(#knobBody)" />
         </g>
-        <circle cx="40" cy="40" r="18" fill="url(#f6)" />
+        
+        <!-- Knob highlight for 3D effect -->
+        <ellipse cx="40" cy="35" rx="18" ry="16" fill="url(#knobHighlight)" opacity="0.8" />
+        
+        <!-- Top surface with metallic finish -->
+        <circle cx="40" cy="40" r="18" fill="url(#topSurface)" />
+        
+        <!-- Edge highlight ring -->
+        <circle cx="40" cy="40" r="18.5" fill="none" stroke="url(#edgeHighlight)" stroke-width="0.5" opacity="0.6" />
+        
+        <!-- Subtle texture overlay -->
+        <circle cx="40" cy="40" r="17" fill="url(#textureOverlay)" opacity="0.15" />
+        
         <defs>
-          <filter
-            id="f2"
-            x="8.33301"
-            y="10.0488"
-            width="63.333"
-            height="64"
-            filterUnits="userSpaceOnUse"
-            color-interpolation-filters="sRGB">
-            <feFlood flood-opacity="0" result="BackgroundImageFix" />
-            <feColorMatrix
-              in="SourceAlpha"
-              type="matrix"
-              values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0"
-              result="hardAlpha" />
-            <feOffset dy="2" />
-            <feGaussianBlur stdDeviation="1.5" />
-            <feComposite in2="hardAlpha" operator="out" />
-            <feColorMatrix
-              type="matrix"
-              values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.25 0" />
-            <feBlend mode="normal" in2="BackgroundImageFix" result="shadow1" />
-            <feBlend
-              mode="normal"
-              in="SourceGraphic"
-              in2="shadow1"
-              result="shape" />
-          </filter>
-          <filter
-            id="f4"
-            x="11.333"
-            y="19.0488"
-            width="57.333"
-            height="59.334"
-            filterUnits="userSpaceOnUse"
-            color-interpolation-filters="sRGB">
-            <feFlood flood-opacity="0" result="BackgroundImageFix" />
-            <feColorMatrix
-              in="SourceAlpha"
-              type="matrix"
-              values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0"
-              result="hardAlpha" />
-            <feOffset dy="10" />
-            <feGaussianBlur stdDeviation="4" />
-            <feComposite in2="hardAlpha" operator="out" />
-            <feColorMatrix
-              type="matrix"
-              values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.25 0" />
-            <feBlend mode="normal" in2="BackgroundImageFix" result="shadow1" />
-            <feColorMatrix
-              in="SourceAlpha"
-              type="matrix"
-              values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0"
-              result="hardAlpha" />
-            <feMorphology
-              radius="5"
-              operator="erode"
-              in="SourceAlpha"
-              result="shadow2" />
-            <feOffset dy="8" />
-            <feGaussianBlur stdDeviation="3" />
-            <feComposite in2="hardAlpha" operator="out" />
-            <feColorMatrix
-              type="matrix"
-              values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.25 0" />
-            <feBlend mode="normal" in2="shadow1" result="shadow2" />
-            <feBlend
-              mode="normal"
-              in="SourceGraphic"
-              in2="shadow2"
-              result="shape" />
-          </filter>
-          <linearGradient
-            id="f1"
-            x1="40"
-            y1="0"
-            x2="40"
-            y2="80"
-            gradientUnits="userSpaceOnUse">
-            <stop stop-opacity="0.5" />
-            <stop offset="1" stop-color="white" stop-opacity="0.3" />
-          </linearGradient>
-          <radialGradient
-            id="f3"
-            cx="0"
-            cy="0"
-            r="1"
-            gradientUnits="userSpaceOnUse"
-            gradientTransform="translate(40 40) rotate(90) scale(29 29)">
-            <stop offset="0.6" stop-color="white" />
-            <stop offset="1" stop-color="white" stop-opacity="0.7" />
+          <!-- Outer shadow gradient -->
+          <radialGradient id="outerShadow">
+            <stop offset="0.7" stop-color="#000" stop-opacity="0" />
+            <stop offset="0.85" stop-color="#000" stop-opacity="0.3" />
+            <stop offset="1" stop-color="#000" stop-opacity="0.6" />
           </radialGradient>
-          <linearGradient
-            id="f5"
-            x1="40"
-            y1="19.0488"
-            x2="40"
-            y2="60.3822"
-            gradientUnits="userSpaceOnUse">
-            <stop stop-color="white" />
-            <stop offset="1" stop-color="#F2F2F2" />
+          
+          <!-- Bezel shadow filter -->
+          <filter id="bezelShadow" x="5" y="7" width="70" height="70">
+            <feGaussianBlur in="SourceAlpha" stdDeviation="2" />
+            <feOffset dx="0" dy="2" result="offsetblur" />
+            <feComponentTransfer>
+              <feFuncA type="linear" slope="0.5" />
+            </feComponentTransfer>
+            <feMerge>
+              <feMergeNode />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+          
+          <!-- Bezel metallic gradient -->
+          <linearGradient id="bezelGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stop-color="#3a3a3a" />
+            <stop offset="30%" stop-color="#5a5a5a" />
+            <stop offset="60%" stop-color="#2a2a2a" />
+            <stop offset="100%" stop-color="#1a1a1a" />
           </linearGradient>
-          <linearGradient
-            id="f6"
-            x1="40"
-            y1="21.7148"
-            x2="40"
-            y2="57.7148"
-            gradientUnits="userSpaceOnUse">
-            <stop stop-color="#EBEBEB" />
-            <stop offset="1" stop-color="white" />
+          
+          <!-- Inner bezel with highlights -->
+          <linearGradient id="innerBezelGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stop-color="#4a4a4a" />
+            <stop offset="50%" stop-color="#6a6a6a" />
+            <stop offset="100%" stop-color="#3a3a3a" />
           </linearGradient>
+          
+          <!-- Knob shadow filter - deeper and more realistic -->
+          <filter id="knobShadow" x="8" y="12" width="64" height="68">
+            <feGaussianBlur in="SourceAlpha" stdDeviation="3" />
+            <feOffset dx="0" dy="4" result="offsetblur" />
+            <feComponentTransfer>
+              <feFuncA type="linear" slope="0.6" />
+            </feComponentTransfer>
+            <feMerge>
+              <feMergeNode />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+          
+          <!-- Main knob body gradient - metallic aluminum look -->
+          <linearGradient id="knobBody" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stop-color="#d0d0d0" />
+            <stop offset="25%" stop-color="#f5f5f5" />
+            <stop offset="50%" stop-color="#e8e8e8" />
+            <stop offset="75%" stop-color="#c0c0c0" />
+            <stop offset="100%" stop-color="#a8a8a8" />
+          </linearGradient>
+          
+          <!-- Knob highlight for 3D depth -->
+          <radialGradient id="knobHighlight">
+            <stop offset="0%" stop-color="#ffffff" stop-opacity="0.9" />
+            <stop offset="60%" stop-color="#ffffff" stop-opacity="0.3" />
+            <stop offset="100%" stop-color="#ffffff" stop-opacity="0" />
+          </radialGradient>
+          
+          <!-- Top surface with brushed metal effect -->
+          <radialGradient id="topSurface" cx="45%" cy="40%">
+            <stop offset="0%" stop-color="#f8f8f8" />
+            <stop offset="40%" stop-color="#e5e5e5" />
+            <stop offset="70%" stop-color="#d5d5d5" />
+            <stop offset="100%" stop-color="#c5c5c5" />
+          </radialGradient>
+          
+          <!-- Edge highlight -->
+          <linearGradient id="edgeHighlight" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stop-color="#ffffff" />
+            <stop offset="50%" stop-color="#888888" />
+            <stop offset="100%" stop-color="#ffffff" />
+          </linearGradient>
+          
+          <!-- Subtle texture overlay -->
+          <radialGradient id="textureOverlay">
+            <stop offset="0%" stop-color="#ffffff" />
+            <stop offset="100%" stop-color="#000000" />
+          </radialGradient>
         </defs>
       </svg>`
   }
