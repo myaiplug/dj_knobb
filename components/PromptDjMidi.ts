@@ -13,10 +13,14 @@ import './PromptController';
 import './PlayPauseButton';
 import './AudioEditor';
 import './DrumSequencer';
+import './ApiKeyModal';
+import './PresetModal';
 import type { PlaybackState, Prompt, RecordingState } from '../types';
 import { MidiDispatcher } from '../utils/MidiDispatcher';
 import { AudioRecorder } from '../utils/AudioRecorder';
 import { LiveMusicHelper } from '../utils/LiveMusicHelper';
+import { ApiKeyStorage } from '../utils/ApiKeyStorage';
+import type { Preset } from '../utils/presets';
 
 /** The grid of prompt inputs. */
 @customElement('prompt-dj-midi')
@@ -207,6 +211,7 @@ export class PromptDjMidi extends LitElement {
 
   private prompts: Map<string, Prompt>;
   private midiDispatcher: MidiDispatcher;
+  private liveMusicHelper: LiveMusicHelper;
 
   @property({ type: Boolean }) private showMidi = false;
   @property({ type: String }) public playbackState: PlaybackState = 'stopped';
@@ -222,17 +227,45 @@ export class PromptDjMidi extends LitElement {
   @state() private isEditorOpen = false;
   @state() private isSequencerOpen = false;
   @state() private transitionBars = 4;
+  @state() private isApiModalOpen = false;
+  @state() private isPresetModalOpen = false;
+  @state() private requirePassword = false;
 
   @property({ type: Object })
   private filteredPrompts = new Set<string>();
 
   constructor(
     initialPrompts: Map<string, Prompt>,
-    private liveMusicHelper: LiveMusicHelper
+    liveMusicHelper: LiveMusicHelper | null
   ) {
     super();
     this.prompts = initialPrompts;
     this.midiDispatcher = new MidiDispatcher();
+    this.liveMusicHelper = liveMusicHelper!;
+  }
+
+  public setLiveMusicHelper(helper: LiveMusicHelper) {
+    this.liveMusicHelper = helper;
+  }
+
+  override connectedCallback() {
+    super.connectedCallback();
+    // Add keyboard shortcut listener for Ctrl+Alt+Home
+    this.handleKeyboardShortcut = this.handleKeyboardShortcut.bind(this);
+    window.addEventListener('keydown', this.handleKeyboardShortcut);
+  }
+
+  override disconnectedCallback() {
+    super.disconnectedCallback();
+    window.removeEventListener('keydown', this.handleKeyboardShortcut);
+  }
+
+  private handleKeyboardShortcut(e: KeyboardEvent) {
+    // Check for Ctrl+Alt+Home
+    if (e.ctrlKey && e.altKey && e.key === 'Home') {
+      e.preventDefault();
+      this.openPresetModal(true); // true = require password
+    }
   }
 
   override updated(changedProperties: Map<string, unknown>) {
@@ -370,6 +403,66 @@ export class PromptDjMidi extends LitElement {
     this.transitionBars = bars;
   }
 
+  private toggleApiModal() {
+    this.isApiModalOpen = !this.isApiModalOpen;
+  }
+
+  public showApiModal() {
+    this.isApiModalOpen = true;
+  }
+
+  private handleApiModalSave(e: CustomEvent) {
+    this.isApiModalOpen = false;
+    // Dispatch event to notify parent that API key was saved
+    this.dispatchEvent(new CustomEvent('api-key-saved', {
+      detail: e.detail
+    }));
+  }
+
+  private openPresetModal(requirePassword: boolean = false) {
+    this.requirePassword = requirePassword;
+    this.isPresetModalOpen = true;
+  }
+
+  private closePresetModal() {
+    this.isPresetModalOpen = false;
+  }
+
+  private handlePresetSelected(e: CustomEvent<{ presetId: string; preset: Preset }>) {
+    const { preset } = e.detail;
+    
+    // Create new prompts from the preset
+    const newPrompts = new Map<string, Prompt>();
+    
+    preset.prompts.forEach((presetPrompt, index) => {
+      const promptId = `prompt-${index}`;
+      newPrompts.set(promptId, {
+        promptId,
+        text: presetPrompt.text,
+        weight: 0, // Start with 0 weight, user can adjust
+        cc: index,
+        color: presetPrompt.color,
+      });
+    });
+    
+    this.prompts = newPrompts;
+    this.requestUpdate();
+    
+    // Notify parent of prompts change
+    this.dispatchEvent(
+      new CustomEvent('prompts-changed', {
+        detail: {
+          prompts: this.prompts,
+          transitionBars: this.transitionBars,
+        },
+      }),
+    );
+  }
+
+  private handleApiModalCancel() {
+    this.isApiModalOpen = false;
+  }
+
   override render() {
     const bg = styleMap({
       backgroundImage: this.makeBackground(),
@@ -380,6 +473,15 @@ export class PromptDjMidi extends LitElement {
 
     return html`<div id="background" style=${bg}></div>
       <div id="buttons">
+        <button
+          @click=${this.toggleApiModal}
+          class=${ApiKeyStorage.hasValidApiKey() ? 'active' : ''}
+          >API</button
+        >
+        <button
+          @click=${() => this.openPresetModal(false)}
+          >PRESETS</button
+        >
         <button
           @click=${this.toggleShowMidi}
           class=${this.showMidi ? 'active' : ''}
@@ -429,6 +531,8 @@ export class PromptDjMidi extends LitElement {
       </div>
       ${this.isEditorOpen ? html`<audio-editor .audioBlob=${this.recordedAudioBlob} @close=${this.closeEditor}></audio-editor>`: ''}
       ${this.isSequencerOpen ? html`<drum-sequencer .liveMusicHelper=${this.liveMusicHelper} @close=${this.toggleSequencer}></drum-sequencer>`: ''}
+      ${this.isApiModalOpen ? html`<api-key-modal @save=${this.handleApiModalSave} @cancel=${this.handleApiModalCancel}></api-key-modal>` : ''}
+      ${this.isPresetModalOpen ? html`<preset-modal .requirePassword=${this.requirePassword} @preset-selected=${this.handlePresetSelected} @close=${this.closePresetModal}></preset-modal>` : ''}
       `;
   }
 
